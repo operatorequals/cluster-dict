@@ -78,7 +78,7 @@ class ClusterDict(collections.MutableMapping):
 	def cluster_connect(self, max_connections=1):
 		try:
 			con_tuples = discover(self.name)
-			print("[!] Discovered", con_tuples)
+			# print("[!] Discovered", con_tuples)
 			# con_tuple = choice(con_tuples)
 			for i in range(max_connections):
 				con_tuple = con_tuples[i]

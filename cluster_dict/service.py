@@ -67,7 +67,8 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		except AttributeError as ae:
 			print("Disconnected instance does not have UUID")
 		except ValueError as ve:
-			print("Connection has been aborted")
+			# print("Connection has been aborted")
+			pass
 
 	def set(self, key, value):
 		ts = int(time.time())
@@ -153,3 +154,5 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 	def close_down(self):
 		for conn in self.connections:
 			conn.close()
+			self.connections = []
+			self.connection_uuids = []
