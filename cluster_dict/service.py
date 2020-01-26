@@ -35,11 +35,11 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			print (ruuid, self.uuid)
 			# print("[{}] - Connected with [{}]".format(self.uuid, ruuid))
 			if ruuid == self.uuid:
-				print("[!] Connected to self - disconnecting")
+				# print("[!] Connected to self - disconnecting")
 				conn.close()
 				return
 			if ruuid in self.connection_uuids:
-				print("[!] Already Connected to remote ClusterDict - disconnecting")
+				# print("[!] Already Connected to remote ClusterDict - disconnecting")
 				conn.close()
 				return
 		except AttributeError as ae:
@@ -149,3 +149,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			else:
 				print("Adding key:value {}:{}".format(k, sync_dict[k]))
 				self._data[k] = sync_dict[k]
+
+	def close_down(self):
+		for conn in self.connections:
+			conn.close()

@@ -109,5 +109,5 @@ if args.mode == 'serve':
 	except rpyc.utils.factory.DiscoveryError as de:
 		print(de)
 	except KeyboardInterrupt as ki:
-		cd.conn.close()
+		cd.service.close_down()
 		print("Aborted by the user")

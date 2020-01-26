@@ -82,7 +82,7 @@ class ClusterDict(collections.MutableMapping):
 			# con_tuple = choice(con_tuples)
 			for i in range(max_connections):
 				con_tuple = con_tuples[i]
-				self.conn = rpyc.connect(*con_tuple, service=self.service)
+				rpyc.connect(*con_tuple, service=self.service)
 			return True
 		except rpyc.utils.factory.DiscoveryError as de:
 			print (de)
@@ -92,19 +92,25 @@ class ClusterDict(collections.MutableMapping):
 		while True:
 			# If the server is on - do nothing
 			if self.SERVER: continue
+			# test all connections
 			for conn in self.service.connections:
 				try: conn.ping()
 				except EOFError: pass
+			# If all connections fell with a Ping
 			if not self.service.connections:
+				# Try to connect again
 				if not self.cluster_connect():
+					# Upon failure, wait random seconds 
 					time.sleep(randint(0,5))
+				# Try to connect again
 				if not self.cluster_connect():
+					# If we fail we promote server
 					print("acquiring serve!")
 					self.start_server()
-					self.SERVER = True
 			time.sleep(interval)
 
 	def sync(self):
+		self.cluster_connect()
 		self.service.sync()
 
 	def start_server(self):
@@ -114,8 +120,8 @@ class ClusterDict(collections.MutableMapping):
 			print("Unable to start Registry, continuing...")
 		try:
 			print("Promoting to SERVER")
-			start_server(self.service, thread=False)
 			self.SERVER=True
+			start_server(self.service, thread=True)
 		except OSError as e:
 			print(e)
 			self.SERVER=False
