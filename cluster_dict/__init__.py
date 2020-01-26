@@ -97,9 +97,9 @@ class ClusterDict(collections.MutableMapping):
 				except EOFError: pass
 			if not self.service.connections:
 				if not self.cluster_connect():
-					time.sleep(randint(0,8))
+					time.sleep(randint(0,5))
 				if not self.cluster_connect():
-					print("Starting server!")
+					print("acquiring serve!")
 					self.start_server()
 					self.SERVER = True
 			time.sleep(interval)
@@ -113,7 +113,9 @@ class ClusterDict(collections.MutableMapping):
 		except OSError:
 			print("Unable to start Registry, continuing...")
 		try:
+			print("Promoting to SERVER")
 			start_server(self.service, thread=False)
 			self.SERVER=True
-		except OSError:
+		except OSError as e:
+			print(e)
 			self.SERVER=False

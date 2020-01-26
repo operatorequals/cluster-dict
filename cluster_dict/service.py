@@ -15,9 +15,10 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		self.sync_interval = kwargs.get('sync_interval', 2)
 		self.propagation_grade = kwargs.get('propagation_grade', 3)
 
-		self.uuid = uuid4()
+		self.uuid = str(uuid4())
 
 		self.connections = []
+		self.connection_uuids = []
 		sync_thread = threading.Thread(target=self.sync_thread)
 		sync_thread.daemon = True
 		sync_thread.start()
@@ -32,29 +33,41 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		try:
 			ruuid = conn.root.uuid()
 			print (ruuid, self.uuid)
-			print("[{}] - Connected with [{}]".format(self.uuid, ruuid))
+			# print("[{}] - Connected with [{}]".format(self.uuid, ruuid))
 			if ruuid == self.uuid:
 				print("[!] Connected to self - disconnecting")
 				conn.close()
 				return
+			if ruuid in self.connection_uuids:
+				print("[!] Already Connected to remote ClusterDict - disconnecting")
+				conn.close()
+				return
 		except AttributeError as ae:
 			# The client is not a ClusterDictService
+			print(ae)
 			print ("The client is not a ClusterDictService")
 			pass
 
 		print("Connected: ", conn)
 		serv = conn.root
 		self.connections.append(conn)
+		self.connection_uuids.append(ruuid)
+		print(self.connection_uuids)
 		# print(self.connections)
 		# print("Syncing!")
 		self.sync()	# Force remote service to sync
-		print(self.connections)
 
 	def on_disconnect(self, conn):
 		# print(self.connections)
 		# print("Disconnected", conn)
-		self.connections.remove(conn)
-		# print(self.connections)
+		try:
+			self.connections.remove(conn)
+			ruuid = conn.root.uuid()
+			self.connection_uuids.remove(ruuid)
+		except AttributeError as ae:
+			print("Disconnected instance does not have UUID")
+		except ValueError as ve:
+			print("Connection has been aborted")
 
 	def set(self, key, value):
 		ts = int(time.time())
@@ -131,9 +144,8 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 				rts = sync_dict[k][1]
 				# Compare TimeStamps
 				if rts > lts:
-					print("Changing")
+					print("Changing '{}' to {}".format(k, sync_dict[k]))
 					self._data[k] = sync_dict[k]
 			else:
-				# print("Adding key:value {}:{}".format(k, sync_dict[k]))
+				print("Adding key:value {}:{}".format(k, sync_dict[k]))
 				self._data[k] = sync_dict[k]
-
