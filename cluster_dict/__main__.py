@@ -116,8 +116,8 @@ if args.mode == 'serve':
 	print ('{}("{}")'.format(args.name, pformat(data)))
 	try:
 		cd = ClusterDict(store=data, name=args.name)
-		while True:
-			sleep(3600)
+		import code
+		code.interact(local=locals())
 
 	except rpyc.utils.factory.DiscoveryError as de:
 		print(de)

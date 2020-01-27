@@ -12,6 +12,7 @@ limitations under the License.
 '''
 
 import logging
+from os import linesep
 import rpyc
 import threading
 import time
@@ -29,7 +30,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 				"ClusterDictService:({})".format(self.uuid)
 				)
 			)
-
+		self.cluster_dict_name = kwargs.get('name', 'N/A')
 		self._data = kwargs.get('store', dict())
 		self.sync_interval = kwargs.get('sync_interval', 2)
 		self.propagation_grade = kwargs.get('propagation_grade', 3)
@@ -78,8 +79,6 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		self.sync()	# Force remote service to sync
 
 	def on_disconnect(self, conn):
-		# print(self.connections)
-		# print("Disconnected", conn)
 		try:
 			self.connections.remove(conn)
 			ruuid = conn.root.uuid()
@@ -93,6 +92,12 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 
 	def set(self, key, value):
 		ts = int(time.time())
+		self.logger.debug(linesep + 
+			"{cd_name}[{key}] = {value} # (@ {ts})".format(
+				cd_name=self.cluster_dict_name,
+				key=key, value=value, ts=ts
+				)
+			)
 		self._data[key] = (value, ts)
 
 	def exposed_set(self, key, value):
@@ -133,7 +138,6 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			v = self.ask_for(key, propagation=(propagation-1))
 
 	def exposed_sync(self):
-		# print("Sync call")
 		return self._data
 
 	def sync_thread(self):
@@ -168,11 +172,24 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 				if rts > lts:
 					print("Changing '{}' to {}".format(k, sync_dict[k]))
 					self._data[k] = sync_dict[k]
+					self.logger.debug("Altering:"+ linesep + 
+						"{cd_name}[{key}] = {value} # (@ {ts})".format(
+							cd_name=self.cluster_dict_name,
+							key=k, value=sync_dict[k][0], ts=sync_dict[k][1]
+							)
+						)
+
 			else:
-				print("Adding key:value {}:{}".format(k, sync_dict[k]))
 				self._data[k] = sync_dict[k]
+				self.logger.debug("Adding:"+ linesep + 
+					"{cd_name}[{key}] = {value} # (@ {ts})".format(
+						cd_name=self.cluster_dict_name,
+						key=k, value=sync_dict[k][0], ts=sync_dict[k][1]
+						)
+					)
 
 	def close_down(self):
+		self.logger.warning("Tearing down connections!")
 		for conn in self.connections:
 			conn.close()
 			self.connections = []

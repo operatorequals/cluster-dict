@@ -80,7 +80,8 @@ class ClusterDict(collections.MutableMapping):
 				dict=store,
 				sync_interval=sync_interval,
 				logger=self.logger,
-				uuid=self.uuid
+				uuid=self.uuid,
+				name=self.name
 			)
 		self.store = self.service
 
