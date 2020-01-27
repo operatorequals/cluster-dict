@@ -87,6 +87,7 @@ class ClusterDict(collections.MutableMapping):
 		self.survive_thread.daemon = True
 		self.survive_thread.start()
 
+		self.logger.info("Attempting connection to '{}' cluster".format(name))
 		self.cluster_connect()
 		# self.start_server()
 
@@ -114,20 +115,28 @@ class ClusterDict(collections.MutableMapping):
 	# ========================================================
 
 	def cluster_connect(self, max_connections=1):
+		if len(self.service.connections) >= max_connections:
+			self.logger.debug("Max connections reached ({})! ".format(
+					len(self.service.connections))
+				)
+			return True	# We are connected with max connections
 		try:
 			con_tuples = discover(self.name)
 		except rpyc.utils.factory.DiscoveryError as de:
-			print (de)
+			self.logger.warning(de)
 			return False
-			# print("[!] Discovered", con_tuples)
-			# con_tuple = choice(con_tuples)
+		self.logger.debug("Discovered {} {}s".format(
+				len(con_tuples), self.name)
+			)
 		for i in range(max_connections):
 			con_tuple = con_tuples[i]
 			# If the connection exists do not repeat it
 			if self._already_connected(con_tuple):
 				continue
+			self.logger.debug("Connecting to {}:{}".format(
+					*con_tuple)
+				)
 			rpyc.connect(*con_tuple, service=self.service)
-
 		return True
 
 	def _already_connected(self, conn_tuple):
@@ -151,14 +160,23 @@ class ClusterDict(collections.MutableMapping):
 				except EOFError: pass
 			# If all connections fell with a Ping
 			if not self.service.connections:
+				self.logger.info("Disconnected from all {}s. Discovering...".format(
+						self.name)
+					)
 				# Try to connect again
 				if not self.cluster_connect():
+					rsecs = randint(0,5)
+					self.logger.debug("Failed to discover '{}'. Waiting {} seconds".format(
+							self.name, rsecs)
+						)
 					# Upon failure, wait random seconds 
-					time.sleep(randint(0,5))
+					time.sleep(rsecs)
 				# Try to connect again
 				if not self.cluster_connect():
 					# If we fail we promote server
-					print("acquiring serve!")
+					self.logger.debug("Failed to discover '{}' twice. Claiming Server...".format(
+							self.name)
+						)
 					self.start_server()
 			time.sleep(interval)
 
@@ -170,9 +188,11 @@ class ClusterDict(collections.MutableMapping):
 		try:
 			start_registry()
 		except OSError:
-			print("Unable to start Registry, continuing...")
+			self.logger.debug("Registry server could not be started.")
 		try:
-			print("Promoting to SERVER")
+			self.logger.info("Promoting to {} server...".format(
+					self.name)
+				)
 			self.SERVER=True
 			start_server(self.service, thread=True)
 		except OSError as e:

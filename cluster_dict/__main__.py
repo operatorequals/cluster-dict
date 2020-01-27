@@ -112,12 +112,18 @@ if args.mode == 'serve':
 	if args.JSON:
 		data = json.load(args.JSON)	
 	else:
-		data = None
-	print ('{}("{}")'.format(args.name, pformat(data)))
+		data = {}
+	print ('{}({})'.format(args.name, pformat(data)))
 	try:
 		cd = ClusterDict(store=data, name=args.name)
 		import code
-		code.interact(local=locals())
+		code.interact(local=locals(),
+			banner="""
+================================================
+Variable 'cd' contains ClusterDict "{name}"
+================================================
+""".format(name=args.name)
+			)
 
 	except rpyc.utils.factory.DiscoveryError as de:
 		print(de)
