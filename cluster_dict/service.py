@@ -90,6 +90,9 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			# print("Connection has been aborted")
 			pass
 
+	def set_meta(self, key, value):
+		self._data[key] = value
+
 	def set(self, key, value):
 		ts = int(time.time())
 		self.logger.debug(linesep + 
@@ -108,7 +111,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			return self._data[key][0]
 		except KeyError:
 			v = self.ask_for(key)
-			if cache : self.set(key, v[0])
+			if cache : self.set_meta(key, v)
 			return v[0]
 
 	def ask_for(self, key, propagation=None):
