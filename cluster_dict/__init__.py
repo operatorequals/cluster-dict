@@ -83,8 +83,6 @@ class ClusterDict(collections.MutableMapping):
 			)
 		self.store = self.service
 
-		self.connection_blacklist = []
-
 		self.survive_thread = threading.Thread(target=self.survive_thread_func)
 		self.survive_thread.daemon = True
 		self.survive_thread.start()
@@ -126,11 +124,22 @@ class ClusterDict(collections.MutableMapping):
 		for i in range(max_connections):
 			con_tuple = con_tuples[i]
 			# If the connection exists do not repeat it
-			if con_tuple in	self.connection_blacklist:
+			if self._already_connected(con_tuple):
 				continue
 			rpyc.connect(*con_tuple, service=self.service)
-			self.connection_blacklist.append(con_tuple)
+
 		return True
+
+	def _already_connected(self, conn_tuple):
+		# Undocumented API for TCP sockets:
+		#	Connection.Channel.Stream.TCPSocket
+		# https://rpyc.readthedocs.io/en/latest/_modules/rpyc/core/channel.html#Channel
+		#---
+		# Run through all connections to check
+		for conn in self.service.connections:
+			if conn_tuple == conn._channel.stream.sock.getpeername():
+				return True
+		return False
 
 	def survive_thread_func(self, interval=3):
 		while True:
