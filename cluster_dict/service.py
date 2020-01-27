@@ -73,7 +73,6 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		serv = conn.root
 		self.connections.append(conn)
 		self.connection_uuids.append(ruuid)
-		print(self.connection_uuids)
 
 		self.logger.debug("Attempting sync with [{}]!".format(ruuid))
 		self.sync()	# Force remote service to sync
@@ -117,11 +116,15 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 	def ask_for(self, key, propagation=None):
 		if propagation is None:
 			propagation = self.propagation_grade
-		print("Asking for: ", key)
+		self.logger.info(
+			"Asking cluster for '{cd_name}[{key}]' (propagation={p})".format(
+				cd_name=self.cluster_dict_name, key=key, p=propagation
+				)
+			)
 		final = (None, 0)
 		for conn in self.connections:
 			serv = conn.root
-			print("asking ", conn)
+			# print("asking ", conn)
 			# Iterate through everyone and ask for the key
 			v=serv.get_meta(key, propagation=propagation)
 			if v != (None, 0):
@@ -136,11 +139,15 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 
 	def exposed_get_meta(self, key, propagation):
 		if propagation <= 0 : return (None,0)
-		print("Asked for '{}'".format(key))
+		self.logger.debug(
+			"Asked cluster for '{cd_name}[{key}]' (propagation={p})".format(
+				cd_name=self.cluster_dict_name, key=key, p=propagation
+				)
+			)
 		try:
 			return self._data[key]
 		except KeyError:
-			print("Propagating for '{}'".format(key))
+			# print("Propagating for '{}'".format(key))
 			v = self.ask_for(key, propagation=(propagation-1))
 			return (None,0)
 
