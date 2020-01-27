@@ -22,7 +22,7 @@ def start_registry():
 
 
 def start_server(service, thread=True, host='0.0.0.0', port=18861):
-	from rpyc.utils.server import ThreadedServer
+	from rpyc.utils.server import ThreadedServer,ThreadPoolServer
 	server = ThreadedServer(service,
 			hostname=host,
 			port=port,

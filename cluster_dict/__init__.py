@@ -111,15 +111,18 @@ class ClusterDict(collections.MutableMapping):
 		return key
 
 	def __repr__(self):
-		return self.store._data.__repr__()
+		ret = {}
+		for k,v in self.store._data.items():
+			ret[k]=v['value']
+		return ret.__repr__()
 	# ========================================================
 
 	def cluster_connect(self, max_connections=1):
-		if len(self.service.connections) >= max_connections:
-			self.logger.debug("Max connections reached ({})! ".format(
-					len(self.service.connections))
-				)
-			return True	# We are connected with max connections
+		# if len(self.service.connections) >= max_connections:
+		# 	self.logger.debug("Max connections reached ({})! ".format(
+		# 			len(self.service.connections))
+		# 		)
+		# 	return True	# We are connected with max connections
 		try:
 			con_tuples = discover(self.name)
 		except rpyc.utils.factory.DiscoveryError as de:
@@ -149,7 +152,7 @@ class ClusterDict(collections.MutableMapping):
 			try:
 				if conn_tuple == conn._channel.stream.sock.getpeername():
 					return True
-			except EOFError:
+			except (EOFError, OSError):
 				continue
 		return False
 

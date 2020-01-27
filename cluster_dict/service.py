@@ -19,6 +19,8 @@ import time
 
 from uuid import uuid4
 
+NULL_META_VALUE = {'value':None, 'ts':-1, 'lu':-1}
+
 class ClusterDictService (rpyc.core.service.ClassicService):
 	ALIASES = ["ClusterDict", "CLUSTER-DICT"]
 
@@ -31,7 +33,10 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 				)
 			)
 		self.cluster_dict_name = kwargs.get('name', 'N/A')
-		self._data = kwargs.get('store', dict())
+		store = kwargs.get('store', dict())
+		self._data = {}
+		for k,v in store.items():
+			self.set(k, v)
 		self.sync_interval = kwargs.get('sync_interval', 2)
 		self.propagation_grade = kwargs.get('propagation_grade', 3)
 
@@ -94,24 +99,29 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 
 	def set(self, key, value):
 		ts = int(time.time())
+		lu = ts
 		self.logger.debug(linesep + 
 			"{cd_name}[{key}] = {value} # (@ {ts})".format(
 				cd_name=self.cluster_dict_name,
 				key=key, value=value, ts=ts
 				)
 			)
-		self._data[key] = (value, ts)
+		self._data[key] = {
+				'value':value,
+				'ts':ts, 'lu':lu
+			}
 
 	def exposed_set(self, key, value):
 		self.set(key, value)
 
 	def get(self, key, cache=True):
-		try:
-			return self._data[key][0]
-		except KeyError:
+		if key not in self._data:
 			v = self.ask_for(key)
+			if v is NULL_META_VALUE: raise KeyError(key)
 			if cache : self.set_meta(key, v)
-			return v[0]
+			return v['value']
+		else:
+			return self._data[key]['value']
 
 	def ask_for(self, key, propagation=None):
 		if propagation is None:
@@ -121,24 +131,23 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 				cd_name=self.cluster_dict_name, key=key, p=propagation
 				)
 			)
-		final = (None, 0)
+		final = NULL_META_VALUE
 		for conn in self.connections:
 			serv = conn.root
 			# print("asking ", conn)
 			# Iterate through everyone and ask for the key
 			v=serv.get_meta(key, propagation=propagation)
-			if v != (None, 0):
-				if v[1] > final[1]:
+			if v != NULL_META_VALUE:
+				if v['ts'] > final['ts']:
 					final = v
-			else:
-				if propagation == 0: raise KeyError(key)
+					v['lu'] = int(time.time())
 		return final
 
 	def exposed_get(self, key):
 		return self.get(key)
 
 	def exposed_get_meta(self, key, propagation):
-		if propagation <= 0 : return (None,0)
+		if propagation <= 0 : return NULL_META_VALUE
 		self.logger.debug(
 			"Asked cluster for '{cd_name}[{key}]' (propagation={p})".format(
 				cd_name=self.cluster_dict_name, key=key, p=propagation
@@ -149,7 +158,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		except KeyError:
 			# print("Propagating for '{}'".format(key))
 			v = self.ask_for(key, propagation=(propagation-1))
-			return (None,0)
+			return NULL_META_VALUE
 
 	def exposed_sync(self):
 		return self._data
@@ -180,8 +189,8 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			# If key exists in both dicts
 			# print("Syncing k '{}'".format(k))
 			if k in self._data:
-				lts = self._data[k][1]
-				rts = sync_dict[k][1]
+				lts = self._data[k]['ts']
+				rts = sync_dict[k]['ts']
 				# Compare TimeStamps
 				if rts > lts:
 					print("Changing '{}' to {}".format(k, sync_dict[k]))
@@ -189,16 +198,15 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 					self.logger.debug("Altering:"+ linesep + 
 						"{cd_name}[{key}] = {value} # (@ {ts})".format(
 							cd_name=self.cluster_dict_name,
-							key=k, value=sync_dict[k][0], ts=sync_dict[k][1]
+							key=k, value=sync_dict[k]['value'], ts=sync_dict[k]['ts']
 							)
 						)
-
 			else:
 				self._data[k] = sync_dict[k]
 				self.logger.debug("Adding:"+ linesep + 
 					"{cd_name}[{key}] = {value} # (@ {ts})".format(
 						cd_name=self.cluster_dict_name,
-						key=k, value=sync_dict[k][0], ts=sync_dict[k][1]
+						key=k, value=sync_dict[k]['value'], ts=sync_dict[k]['ts']
 						)
 					)
 
