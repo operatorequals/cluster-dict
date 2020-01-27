@@ -69,8 +69,6 @@ class ClusterDict(collections.MutableMapping):
 		self.logger = logging.getLogger(__name__)
 		self.logger.addHandler(handler)
 		self.logger.setLevel(logging.DEBUG)
-		print(self.logger)
-		# self.logger.info("Logger Created")
 
 		class PrivateClusterDictService(ClusterDictService):
 			ALIASES=[name, *ClusterDictService.ALIASES]
@@ -84,6 +82,8 @@ class ClusterDict(collections.MutableMapping):
 				name=self.name
 			)
 		self.store = self.service
+
+		self.connection_blacklist = []
 
 		self.survive_thread = threading.Thread(target=self.survive_thread_func)
 		self.survive_thread.daemon = True
@@ -118,15 +118,19 @@ class ClusterDict(collections.MutableMapping):
 	def cluster_connect(self, max_connections=1):
 		try:
 			con_tuples = discover(self.name)
-			# print("[!] Discovered", con_tuples)
-			# con_tuple = choice(con_tuples)
-			for i in range(max_connections):
-				con_tuple = con_tuples[i]
-				rpyc.connect(*con_tuple, service=self.service)
-			return True
 		except rpyc.utils.factory.DiscoveryError as de:
 			print (de)
 			return False
+			# print("[!] Discovered", con_tuples)
+			# con_tuple = choice(con_tuples)
+		for i in range(max_connections):
+			con_tuple = con_tuples[i]
+			# If the connection exists do not repeat it
+			if con_tuple in	self.connection_blacklist:
+				continue
+			rpyc.connect(*con_tuple, service=self.service)
+			self.connection_blacklist.append(con_tuple)
+		return True
 
 	def survive_thread_func(self, interval=3):
 		while True:

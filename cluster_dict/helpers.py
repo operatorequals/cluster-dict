@@ -21,9 +21,10 @@ def start_registry():
 
 
 
-def start_server(service, port=18861, thread=True):
+def start_server(service, thread=True, host='0.0.0.0', port=18861):
 	from rpyc.utils.server import ThreadedServer
 	server = ThreadedServer(service,
+			hostname=host,
 			port=port,
 			reuse_addr=True,
 			auto_register=True,
@@ -33,5 +34,7 @@ def start_server(service, port=18861, thread=True):
 		server_thread = threading.Thread(target=server.start)
 		server_thread.daemon=True
 		server_thread.start()
+		return (host, port)
 	else:
 		server.start()
+		return (host, port)
