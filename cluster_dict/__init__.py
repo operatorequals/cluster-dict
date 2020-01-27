@@ -137,8 +137,11 @@ class ClusterDict(collections.MutableMapping):
 		#---
 		# Run through all connections to check
 		for conn in self.service.connections:
-			if conn_tuple == conn._channel.stream.sock.getpeername():
-				return True
+			try:
+				if conn_tuple == conn._channel.stream.sock.getpeername():
+					return True
+			except EOFError:
+				continue
 		return False
 
 	def survive_thread_func(self, interval=3):

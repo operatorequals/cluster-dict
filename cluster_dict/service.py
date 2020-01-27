@@ -124,8 +124,11 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			print("asking ", conn)
 			# Iterate through everyone and ask for the key
 			v=serv.get_meta(key, propagation=propagation)
-			if v[1] > final[1]:
-				final = v
+			if v != (None, 0):
+				if v[1] > final[1]:
+					final = v
+			else:
+				if propagation == 0: raise KeyError(key)
 		return final
 
 	def exposed_get(self, key):
@@ -139,6 +142,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		except KeyError:
 			print("Propagating for '{}'".format(key))
 			v = self.ask_for(key, propagation=(propagation-1))
+			return (None,0)
 
 	def exposed_sync(self):
 		return self._data
