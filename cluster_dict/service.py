@@ -11,11 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
+import logging
 import rpyc
 import threading
 import time
-
-import cluster_dict
 
 from uuid import uuid4
 
@@ -24,11 +23,18 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 
 	def __init__(self, **kwargs):
 		rpyc.core.service.ClassicService.__init__(self)
-		self._data = kwargs.get('dict',{})
+
+		self.uuid = kwargs.get('uuid', str(uuid4()))
+		self.logger = kwargs.get('logger', logging.getLogger(
+				"ClusterDictService:({})".format(self.uuid)
+				)
+			)
+
+		self._data = kwargs.get('store', dict())
 		self.sync_interval = kwargs.get('sync_interval', 2)
 		self.propagation_grade = kwargs.get('propagation_grade', 3)
 
-		self.uuid = str(uuid4())
+		self.logger.info("Service with UUID '{}' created!".format(self.uuid))
 
 		self.connections = []
 		self.connection_uuids = []
@@ -45,29 +51,30 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 	def on_connect(self, conn):
 		try:
 			ruuid = conn.root.uuid()
-			print (ruuid, self.uuid)
-			# print("[{}] - Connected with [{}]".format(self.uuid, ruuid))
+			self.logger.debug("Connecting with [{}]!".format(ruuid))
 			if ruuid == self.uuid:
-				# print("[!] Connected to self - disconnecting")
+				print("[!] Connected to self - disconnecting")
+				self.info("Connected to self. Disconnecting...")
 				conn.close()
 				return
 			if ruuid in self.connection_uuids:
-				# print("[!] Already Connected to remote ClusterDict - disconnecting")
+				self.logger.info(
+						"Already Connected to remote ClusterDict [{}]. Disconnecting...".format(ruuid)
+					)
 				conn.close()
 				return
 		except AttributeError as ae:
-			# The client is not a ClusterDictService
 			print(ae)
-			print ("The client is not a ClusterDictService")
-			pass
+			self.logger.debug("The client is not a ClusterDictService")
+			return
 
-		print("Connected: ", conn)
+		self.logger.info("Connected with [{}]!".format(ruuid))
 		serv = conn.root
 		self.connections.append(conn)
 		self.connection_uuids.append(ruuid)
 		print(self.connection_uuids)
-		# print(self.connections)
-		# print("Syncing!")
+
+		self.logger.debug("Attempting sync with [{}]!".format(ruuid))
 		self.sync()	# Force remote service to sync
 
 	def on_disconnect(self, conn):
@@ -76,9 +83,10 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		try:
 			self.connections.remove(conn)
 			ruuid = conn.root.uuid()
+			self.logger.info("Disconnected from [{}]!".format(ruuid))
 			self.connection_uuids.remove(ruuid)
 		except AttributeError as ae:
-			print("Disconnected instance does not have UUID")
+			self.logger.debug("Disconnected from unknown service!")
 		except ValueError as ve:
 			# print("Connection has been aborted")
 			pass

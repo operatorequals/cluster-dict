@@ -22,7 +22,7 @@ from rpyc.utils.factory import discover
 
 from cluster_dict.service import ClusterDictService
 from cluster_dict import ClusterDict # ; cd = ClusterDict()
-
+from cluster_dict.logger import logger
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", '-n', help="ClusterDict name",default='ClusterDict')

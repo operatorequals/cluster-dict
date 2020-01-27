@@ -22,13 +22,16 @@ __github__ = 'https://github.com/operatorequals/cluster_dict'
 # __all__=['get', 'set', 'del']
 
 
-import threading
-from random import choice, randint
 import collections
+from random import choice, randint
+import logging
+import threading
 import time
+from uuid import uuid4
 
 from cluster_dict.helpers import start_registry, start_server
 from cluster_dict.service import ClusterDictService
+from cluster_dict.logger import SymbolLogFormatter
 
 try:
 	start_registry()
@@ -44,21 +47,40 @@ class ClusterDict(collections.MutableMapping):
 	   function before accessing the keys"""
 
 	# def __init__(self, *args, **kwargs):
-	def __init__(self, *args, name="DefaultClusterDict",
-								store={},
-								sync_interval = 10,
-								# sync_percentage = 100,
-								authenticator = None,	# Can be any of 'rpyc.utils.authenticators'
-								**kwargs):
+	def __init__(self, *args, 
+						name="ClusterDict",
+						store=dict(),
+						sync_interval = 10,
+						# sync_percentage = 100,
+						authenticator = None,	# Can be any of 'rpyc.utils.authenticators'
+						uuid = str(uuid4()),
+						**kwargs
+					):
 		self.name = name
 		self.SERVER = False
 
+		self.uuid = str(uuid4())
+		self.uuid_min = self.uuid.split('-')[1]	# Only store 4 digits
+
+		handler = logging.StreamHandler()
+		fmt = SymbolLogFormatter(uuid=self.uuid_min, name=name)
+		handler.setFormatter(fmt)
+
+		self.logger = logging.getLogger(__name__)
+		self.logger.addHandler(handler)
+		self.logger.setLevel(logging.DEBUG)
+		print(self.logger)
+		# self.logger.info("Logger Created")
+
 		class PrivateClusterDictService(ClusterDictService):
 			ALIASES=[name, *ClusterDictService.ALIASES]
-			def __init__(self,*args,**kwargs): super().__init__()
+			def __init__(self,*args,**kwargs): super().__init__(*args,**kwargs)
+
 		self.service = PrivateClusterDictService(
 				dict=store,
-				sync_interval=sync_interval
+				sync_interval=sync_interval,
+				logger=self.logger,
+				uuid=self.uuid
 			)
 		self.store = self.service
 
