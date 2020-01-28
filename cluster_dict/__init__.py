@@ -16,7 +16,7 @@ from rpyc.utils.factory import discover
 
 
 __author__ = 'John Torakis - operatorequals'
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 __github__ = 'https://github.com/operatorequals/cluster_dict'
 
 # __all__=['get', 'set', 'del']
@@ -75,7 +75,7 @@ class ClusterDict(collections.MutableMapping):
 			def __init__(self,*args,**kwargs): super().__init__(*args,**kwargs)
 
 		self.service = PrivateClusterDictService(
-				dict=store,
+				store=store,
 				sync_interval=sync_interval,
 				logger=self.logger,
 				uuid=self.uuid,
@@ -158,13 +158,22 @@ class ClusterDict(collections.MutableMapping):
 
 	def survive_thread_func(self, interval=3):
 		while True:
+			self.logger.debug("Self-Healing Thread Routine '{}'".format(interval)
+				)
+
 			# If the server is on - do nothing
-			if self.SERVER: continue
+			if self.SERVER: return
+			time.sleep(interval)
 			# test all connections
 			for conn in self.service.connections:
-				try: conn.ping()
-				except EOFError: pass
+				try: conn.ping(timeout=2)
+				except (rpyc.core.protocol.PingError, EOFError):
+					try:
+						self.service.connections.remove(conn)
+					except ValueError:
+						pass
 			# If all connections fell with a Ping
+			# print(self.service.connections)
 			if not self.service.connections:
 				self.logger.info("Disconnected from all {}s. Discovering...".format(
 						self.name)
@@ -183,8 +192,10 @@ class ClusterDict(collections.MutableMapping):
 					self.logger.debug("Failed to discover '{}' twice. Claiming Server...".format(
 							self.name)
 						)
-					self.start_server()
-			time.sleep(interval)
+					try:
+						self.start_server()
+					except Exception as e:
+						self.logger.warning(e)
 
 	def sync(self):
 		self.cluster_connect()

@@ -33,8 +33,9 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 				)
 			)
 		self.cluster_dict_name = kwargs.get('name', 'N/A')
-		store = kwargs.get('store', dict())
 		self._data = {}
+		store = kwargs.get('store', dict())
+		print(store)
 		for k,v in store.items():
 			self.set(k, v)
 		self.sync_interval = kwargs.get('sync_interval', 2)
@@ -59,8 +60,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			ruuid = conn.root.uuid()
 			self.logger.debug("Connecting with [{}]!".format(ruuid))
 			if ruuid == self.uuid:
-				print("[!] Connected to self - disconnecting")
-				self.info("Connected to self. Disconnecting...")
+				self.logger.info("Connected to self. Disconnecting...")
 				conn.close()
 				return
 			if ruuid in self.connection_uuids:
@@ -173,11 +173,14 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 			# print("Syncing with connection: ", conn)
 			serv = conn.root
 			try:
-				sync_dict = serv.sync()
+				netref_sync_dict = serv.sync()
+				# sync_dict = netref_sync_dict.value
+				# netref_sync_dict.wait()
+				# Use a callback to sync properly
+				sync_dict = netref_sync_dict
 			except Exception as ae:
 				# The client is not a ClusterDictService
 				continue
-			# print(sync_dict)
 			try:
 				self.__update_dict(sync_dict)
 			except RuntimeError as re:

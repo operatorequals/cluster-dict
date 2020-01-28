@@ -101,10 +101,11 @@ if args.mode == 'get':
 
 if args.mode == 'update':
 	data = json.load(args.JSON)
-	print ('{}.update("{}")'.format(args.name, pformat(data)))
+	print ('{}.update({})'.format(args.name, pformat(data)))
 	try:
 		cd = ClusterDict(store=data, name=args.name)
-		# cd.sync()
+		print(cd)
+		cd.sync()
 	except rpyc.utils.factory.DiscoveryError as de:
 		print(de)
 
