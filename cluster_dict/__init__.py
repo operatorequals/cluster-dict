@@ -15,9 +15,6 @@ import rpyc
 from rpyc.utils.factory import discover
 
 
-__author__ = 'John Torakis - operatorequals'
-__version__ = '0.2.0'
-__github__ = 'https://github.com/operatorequals/cluster_dict'
 
 # __all__=['get', 'set', 'del']
 
