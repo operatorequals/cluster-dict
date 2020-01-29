@@ -45,6 +45,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 
 		self.connections = []
 		self.connection_uuids = []
+		self.always_ask_keys = []
 		sync_thread = threading.Thread(target=self.sync_thread)
 		sync_thread.daemon = True
 		sync_thread.start()
@@ -70,7 +71,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 				conn.close()
 				return
 		except AttributeError as ae:
-			print(ae)
+			# print(ae)
 			self.logger.debug("The client is not a ClusterDictService")
 			return
 
@@ -115,7 +116,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 		self.set(key, value)
 
 	def get(self, key, cache=True):
-		if key not in self._data:
+		if key not in self._data or key in self.always_ask_keys:
 			v = self.ask_for(key)
 			if v is NULL_META_VALUE: raise KeyError(key)
 			if cache : self.set_meta(key, v)
@@ -216,6 +217,7 @@ class ClusterDictService (rpyc.core.service.ClassicService):
 	def close_down(self):
 		self.logger.warning("Tearing down connections!")
 		for conn in self.connections:
-			conn.close()
-			self.connections = []
-			self.connection_uuids = []
+			try: conn.close()
+			except EOFError: pass
+		self.connections = []
+		self.connection_uuids = []

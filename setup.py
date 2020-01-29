@@ -1,6 +1,6 @@
 from setuptools import setup
 
-import cluster_dict
+from cluster_dict import __meta__ as cluster_dict
 
 try :
 	long_description_str = open('README.md').read()
@@ -17,12 +17,12 @@ setup(
 	description='Distributed Python dict',
 	long_description=long_description_str,
 	author=cluster_dict.__author__,
-	author_email='john.torakis@gmail.com',
+	author_email=cluster_dict.__email__,
 	license='Apache2',
 	url=cluster_dict.__github__,
 	py_modules=['cluster_dict'],
 
-	# install_requires=load_requirements("requirements.txt"),
+	install_requires=load_requirements("requirements.txt"),
 
 	classifiers=[
 	# 'Development Status :: 6 - Mature',
@@ -52,9 +52,9 @@ setup(
 		'key-value',
 	],
 
-	# entry_points = {
-	# 	'console_scripts' : [
-	# 			"cluster_dict=cluster_dict.__main__:"
-	# 	]
-	# }
+	entry_points = {
+		'console_scripts' : [
+				"cluster_dict=cluster_dict.__main__:main"
+		]
+	}
 )
