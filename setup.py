@@ -7,10 +7,6 @@ try :
 except IOError as e:
 	long_description_str = 'https://github.com/operatorequals/cluster_dict/blob/master/README.md'
 
-def load_requirements(fname):
-    reqs = parse_requirements(fname, session="test")
-    return [str(ir.req) for ir in reqs]
-
 setup(
 	name=cluster_dict.__name__,
 	version=cluster_dict.__version__,
@@ -21,8 +17,6 @@ setup(
 	license='Apache2',
 	url=cluster_dict.__github__,
 	py_modules=['cluster_dict'],
-
-	install_requires=load_requirements("requirements.txt"),
 
 	classifiers=[
 	# 'Development Status :: 6 - Mature',
