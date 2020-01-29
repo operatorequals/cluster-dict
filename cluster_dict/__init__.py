@@ -33,10 +33,10 @@ from cluster_dict.helpers import start_registry, start_server
 from cluster_dict.service import ClusterDictService
 from cluster_dict.logger import SymbolLogFormatter
 
-try:
-	start_registry()
-except OSError:
-	print("Unable to start Registry, continuing...")
+# try:
+# 	start_registry()
+# except OSError:
+# 	print("Unable to start Registry, continuing...")
 
 
 
@@ -54,10 +54,16 @@ class ClusterDict(collections.MutableMapping):
 						# sync_percentage = 100,
 						authenticator = None,	# Can be any of 'rpyc.utils.authenticators'
 						uuid = str(uuid4()),
+						host = '0.0.0.0',
+						port = 18861,
 						**kwargs
 					):
-		self.name = name
 		self.SERVER = False
+		self.SURVIVE = True
+
+		self.name = name
+		self.host = host
+		self.port = port
 
 		self.uuid = str(uuid4())
 		self.uuid_min = self.uuid.split('-')[1]	# Only store 4 digits
@@ -118,11 +124,11 @@ class ClusterDict(collections.MutableMapping):
 	# ========================================================
 
 	def cluster_connect(self, max_connections=1):
-		# if len(self.service.connections) >= max_connections:
-		# 	self.logger.debug("Max connections reached ({})! ".format(
-		# 			len(self.service.connections))
-		# 		)
-		# 	return True	# We are connected with max connections
+		if len(self.service.connections) >= max_connections:
+			self.logger.debug("Max connections reached ({})! ".format(
+					len(self.service.connections))
+				)
+			return True	# We are connected with max connections
 		try:
 			con_tuples = discover(self.name)
 		except rpyc.utils.factory.DiscoveryError as de:
@@ -157,10 +163,9 @@ class ClusterDict(collections.MutableMapping):
 		return False
 
 	def survive_thread_func(self, interval=3):
-		while True:
+		while self.SURVIVE:
 			self.logger.debug("Self-Healing Thread Routine '{}'".format(interval)
 				)
-
 			# If the server is on - do nothing
 			if self.SERVER: return
 			time.sleep(interval)
@@ -175,7 +180,7 @@ class ClusterDict(collections.MutableMapping):
 			# If all connections fell with a Ping
 			# print(self.service.connections)
 			if not self.service.connections:
-				self.logger.info("Disconnected from all {}s. Discovering...".format(
+				self.logger.info("No connections to {}s. Discovering...".format(
 						self.name)
 					)
 				# Try to connect again
@@ -207,11 +212,20 @@ class ClusterDict(collections.MutableMapping):
 		except OSError:
 			self.logger.debug("Registry server could not be started.")
 		try:
-			self.logger.info("Promoting to {} server...".format(
-					self.name)
+			self.logger.info(
+				"Promoting to {} server...".format(
+					self.name
+					)
 				)
 			self.SERVER=True
-			start_server(self.service, thread=True)
+			start_server(
+					self.service, thread=True,
+					host=self.host, port=self.port
+					)
 		except OSError as e:
 			print(e)
 			self.SERVER=False
+
+	def disconnect(self):
+		self.SURVIVE = False
+		self.service.close_down()

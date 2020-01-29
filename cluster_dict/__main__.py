@@ -16,12 +16,13 @@ import json
 from pprint import pprint, pformat
 import rpyc
 import random
+import sys
 from time import sleep
 
 from rpyc.utils.factory import discover
 
 from cluster_dict.service import ClusterDictService
-from cluster_dict import ClusterDict # ; cd = ClusterDict()
+from cluster_dict import ClusterDict
 from cluster_dict.logger import logger
 
 parser = argparse.ArgumentParser()
@@ -39,11 +40,11 @@ set_.add_argument("value")
 get_ = subparsers.add_parser("get")
 get_.add_argument("key")
 
-update_ = subparsers.add_parser("update")
-update_.add_argument("JSON", type=argparse.FileType('r'))
-
 serve_ = subparsers.add_parser("serve")
-serve_.add_argument("--JSON", type=argparse.FileType('r'))
+serve_.add_argument("--json-file", '-f', type=argparse.FileType('r'))
+serve_.add_argument("--host", default='0.0.0.0')
+serve_.add_argument("--port", '-p', default=18861)
+serve_.add_argument("--exit", default=False, action='store_true')
 
 args = parser.parse_args()
 
@@ -61,6 +62,8 @@ if args.mode == 'discover':
 
 	except rpyc.utils.factory.DiscoveryError as de:
 		print(de)
+	except AttributeError:
+		conn.close()
 
 if args.mode == 'set':
 	try:
@@ -99,24 +102,19 @@ if args.mode == 'get':
 	except rpyc.utils.factory.DiscoveryError as de:
 		print(de)
 
-if args.mode == 'update':
-	data = json.load(args.JSON)
-	print ('{}.update({})'.format(args.name, pformat(data)))
-	try:
-		cd = ClusterDict(store=data, name=args.name)
-		print(cd)
-		cd.sync()
-	except rpyc.utils.factory.DiscoveryError as de:
-		print(de)
-
 if args.mode == 'serve':
-	if args.JSON:
-		data = json.load(args.JSON)	
+	if args.json_file:
+		data = json.load(args.json_file)	
 	else:
 		data = {}
 	print ('{}({})'.format(args.name, pformat(data)))
 	try:
 		cd = ClusterDict(store=data, name=args.name)
+		if args.exit:
+			cd.sync()
+			cd.disconnect()
+			sys.exit(0)
+
 		import code
 		code.interact(local=locals(),
 			banner="""
@@ -125,7 +123,8 @@ Variable 'cd' contains ClusterDict "{name}"
 ================================================
 """.format(name=args.name)
 			)
-
+		# Reached here after killing Interactive console
+		cd.service.close_down()
 	except rpyc.utils.factory.DiscoveryError as de:
 		print(de)
 	except KeyboardInterrupt as ki:
